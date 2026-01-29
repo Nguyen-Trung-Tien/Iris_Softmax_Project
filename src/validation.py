@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 
 # 1. Load dữ liệu (Giả sử bạn đã có code load)
-df = pd.read_csv('iris.csv') # Thay đường dẫn file của bạn
+df = pd.read_csv('iris.csv') 
 X = df.iloc[:, :4].values  # 4 cột đặc trưng
 y = df.iloc[:, 4].values   # Cột nhãn (loài hoa)
 
