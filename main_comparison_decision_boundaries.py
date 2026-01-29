@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import os  # <--- Thêm thư viện này để xử lý thư mục
+import os 
 from sklearn import datasets
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
