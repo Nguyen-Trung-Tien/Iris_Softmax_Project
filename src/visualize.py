@@ -4,8 +4,6 @@ import numpy as np
 from sklearn.metrics import confusion_matrix
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
-from mpl_toolkits.mplot3d import Axes3D
-
 
 # ================= CONFUSION MATRIX =================
 def plot_confusion_matrix(y_test, y_pred, save_path):
@@ -63,6 +61,57 @@ def plot_pca_3d(X, y, save_path):
     plt.savefig(save_path)
     plt.show()
 
+def plot_pca_2d_with_boundary(X, y, model, save_path):
+ 
+
+    # 1. Scale + PCA
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    pca = PCA(n_components=2)
+    X_pca = pca.fit_transform(X_scaled)
+
+    # 2. Train model trên PCA space
+    model.fit(X_pca, y)
+
+    # 3. Mesh grid
+    x_min, x_max = X_pca[:, 0].min() - 1, X_pca[:, 0].max() + 1
+    y_min, y_max = X_pca[:, 1].min() - 1, X_pca[:, 1].max() + 1
+    xx, yy = np.meshgrid(
+        np.linspace(x_min, x_max, 300),
+        np.linspace(y_min, y_max, 300)
+    )
+
+    Z = model.predict(np.c_[xx.ravel(), yy.ravel()])
+    Z = Z.reshape(xx.shape)
+
+    # 4. Plot
+    plt.figure(figsize=(7, 6))
+    plt.contourf(xx, yy, Z, alpha=0.25, cmap="viridis")
+
+    scatter = plt.scatter(
+        X_pca[:, 0],
+        X_pca[:, 1],
+        c=y,
+        cmap="viridis",
+        edgecolor="k",
+        s=40
+    )
+
+    plt.xlabel("Principal Component 1")
+    plt.ylabel("Principal Component 2")
+    plt.title("PCA 2D with Decision Boundary")
+
+    legend = plt.legend(
+        *scatter.legend_elements(),
+        title="Classes"
+    )
+    plt.gca().add_artist(legend)
+
+    plt.tight_layout()
+    plt.savefig(save_path)
+    plt.show()
+
 
 # ================= CROSS VALIDATION =================
 def plot_cross_validation(scores, save_path):
@@ -86,3 +135,21 @@ def plot_cross_validation(scores, save_path):
 
     plt.savefig(save_path)
     plt.show()
+
+# ================= TRAIN VS VALIDATION LOSS =================
+def plot_train_val_loss(train_losses, val_losses, save_path):
+    epochs = np.arange(1, len(train_losses) + 1)
+
+    plt.figure(figsize=(6, 5))
+    plt.plot(epochs, train_losses, label="Train Loss")
+    plt.plot(epochs, val_losses, label="Validation Loss")
+
+    plt.xlabel("Epoch")
+    plt.ylabel("Log Loss")
+    plt.title("Training vs Validation Loss")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(save_path)
+    plt.show()
+
