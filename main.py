@@ -10,7 +10,7 @@ from src.train import train_model
 from src.evaluate import evaluate
 from src.visualize import (
     plot_confusion_matrix,
-    plot_decision_boundary,
+    plot_pca_3d,
     plot_cross_validation
 )
 from src.cross_validation import cross_validate
@@ -71,9 +71,9 @@ def main():
         "results/confusion_matrix.png"
     )
 
-    plot_decision_boundary(
-        model, X, y,
-        "results/decision_boundary.png"
+    plot_pca_3d(
+    X, y,
+    "results/pca_3d.png"
     )
 
     cv_scores = cross_validate(model, X_train, y_train, cv=5)

@@ -1,8 +1,13 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import confusion_matrix
 import numpy as np
+from sklearn.metrics import confusion_matrix
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from mpl_toolkits.mplot3d import Axes3D
 
+
+# ================= CONFUSION MATRIX =================
 def plot_confusion_matrix(y_test, y_pred, save_path):
     cm = confusion_matrix(y_test, y_pred)
 
@@ -11,33 +16,55 @@ def plot_confusion_matrix(y_test, y_pred, save_path):
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
     plt.title("Confusion Matrix")
+    plt.tight_layout()
     plt.savefig(save_path)
     plt.show()
 
-def plot_decision_boundary(model, X, y, save_path):
-    X2 = X[:, 2:4]  # petal length & petal width
-    model.fit(X2, y)
 
-    x_min, x_max = X2[:, 0].min() - 1, X2[:, 0].max() + 1
-    y_min, y_max = X2[:, 1].min() - 1, X2[:, 1].max() + 1
+# ================= PCA 3D VISUALIZATION =================
+def plot_pca_3d(X, y, save_path):
+    """
+    Dùng toàn bộ 4 feature -> PCA -> 3D
+    """
 
-    xx, yy = np.meshgrid(
-        np.linspace(x_min, x_max, 200),
-        np.linspace(y_min, y_max, 200)
+    # 1. Chuẩn hóa
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    # 2. PCA 4 -> 3
+    pca = PCA(n_components=3)
+    X_pca = pca.fit_transform(X_scaled)
+
+    # 3. Vẽ 3D
+    fig = plt.figure(figsize=(7, 6))
+    ax = fig.add_subplot(111, projection="3d")
+
+    scatter = ax.scatter(
+        X_pca[:, 0],
+        X_pca[:, 1],
+        X_pca[:, 2],
+        c=y,
+        cmap="viridis",
+        s=40
     )
 
-    Z = model.predict(np.c_[xx.ravel(), yy.ravel()])
-    Z = Z.reshape(xx.shape)
+    ax.set_xlabel("Principal Component 1")
+    ax.set_ylabel("Principal Component 2")
+    ax.set_zlabel("Principal Component 3")
+    ax.set_title("3D PCA Visualization (from 4 features)")
 
-    plt.figure(figsize=(6, 5))
-    plt.contourf(xx, yy, Z, alpha=0.3)
-    plt.scatter(X2[:, 0], X2[:, 1], c=y)
-    plt.xlabel("Petal length (cm)")
-    plt.ylabel("Petal width (cm)")
-    plt.title("Decision Boundary - Softmax Regression")
+    legend = ax.legend(
+        *scatter.legend_elements(),
+        title="Classes"
+    )
+    ax.add_artist(legend)
+
+    plt.tight_layout()
     plt.savefig(save_path)
     plt.show()
 
+
+# ================= CROSS VALIDATION =================
 def plot_cross_validation(scores, save_path):
     folds = np.arange(1, len(scores) + 1)
 
@@ -55,6 +82,7 @@ def plot_cross_validation(scores, save_path):
     plt.title("Cross-Validation Accuracy")
     plt.legend()
     plt.grid(True)
+    plt.tight_layout()
 
     plt.savefig(save_path)
     plt.show()
