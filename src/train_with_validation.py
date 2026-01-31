@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.metrics import log_loss
 
-def train_with_loss(model, X_train, y_train, X_val, y_val, epochs=200):
+def train_with_validation(model, X_train, y_train, X_val, y_val, epochs=200):
     train_losses = []
     val_losses = []
     classes = np.unique(y_train)

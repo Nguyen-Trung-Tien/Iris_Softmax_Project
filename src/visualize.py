@@ -10,7 +10,13 @@ def plot_confusion_matrix(y_test, y_pred, save_path):
     cm = confusion_matrix(y_test, y_pred)
 
     plt.figure(figsize=(6, 5))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
+    plt.imshow(cm, cmap="Blues")
+    plt.colorbar()
+
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            plt.text(j, i, cm[i, j], ha="center", va="center")
+
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
     plt.title("Confusion Matrix")
@@ -19,10 +25,11 @@ def plot_confusion_matrix(y_test, y_pred, save_path):
     plt.show()
 
 
+
 # ================= PCA 3D VISUALIZATION =================
 def plot_pca_3d(X, y, save_path):
     """
-    Dùng toàn bộ 4 feature -> PCA -> 3D
+    PCA visualization only (NOT used for training or evaluation)
     """
 
     # 1. Chuẩn hóa
@@ -118,12 +125,12 @@ def plot_cross_validation(scores, save_path):
     folds = np.arange(1, len(scores) + 1)
 
     plt.figure(figsize=(6, 5))
-    sns.lineplot(x=folds, y=scores, marker="o")
+    plt.plot(folds, scores, marker="o", label="Fold accuracy")
     plt.axhline(
         y=np.mean(scores),
         linestyle="--",
         color="red",
-        label=f"Mean accuracy = {np.mean(scores):.2f}"
+        label=f"Mean = {np.mean(scores):.2f}"
     )
 
     plt.xlabel("Fold")
@@ -132,9 +139,9 @@ def plot_cross_validation(scores, save_path):
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-
     plt.savefig(save_path)
     plt.show()
+
 
 # ================= TRAIN VS VALIDATION LOSS =================
 def plot_train_val_loss(train_losses, val_losses, save_path):

@@ -4,7 +4,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 from src.load_data import load_data
-from src.preprocess import preprocess
+
 from src.model import build_model
 from src.train import train_model
 from src.evaluate import evaluate
@@ -18,7 +18,8 @@ from src.visualize import (
 from sklearn.linear_model import LogisticRegression
 from src.cross_validation import cross_validate
 from src.config_loader import load_config
-from src.train_with_loss import train_with_loss
+from src.train_with_validation import train_with_validation
+
 
 def main():
     # 1. Load config
@@ -27,8 +28,8 @@ def main():
     # 2. Load data
     X, y = load_data("data/iris.csv")
 
-    # 3. Cross-validation
-    print("---Thực hiện Cross-Validation (K=5)---")
+    # 3. Cross-Validation (Scaler + Model)
+    print("--- Thực hiện Cross-Validation (K=5) ---")
 
     pipeline = make_pipeline(
         StandardScaler(),
@@ -41,50 +42,50 @@ def main():
         random_state=config["data"]["random_state"]
     )
 
-    scores = cross_val_score(
+    cv_scores = cross_val_score(
         pipeline,
         X, y,
         cv=cv,
         scoring="accuracy"
     )
 
-    print(f"Kết quả từng fold: {scores}")
-    print(f"Accuracy trung bình: {np.mean(scores):.4f} ± {np.std(scores):.4f}")
-    print("-------------------------------------------\n")
+    print(f"Kết quả từng fold: {cv_scores}")
+    print(f"Accuracy trung bình: {np.mean(cv_scores):.4f} ± {np.std(cv_scores):.4f}")
+    print("----------------------------------------\n")
 
     # 4. Train / Test split
     X_train, X_test, y_train, y_test = train_test_split(
-    X, y,  # ← Từ toàn bộ dữ liệu
-    test_size=config["data"]["test_size"],
-    random_state=config["data"]["random_state"],
-    stratify=y
+        X, y,
+        test_size=config["data"]["test_size"],
+        random_state=config["data"]["random_state"],
+        stratify=y
     )
 
-    # 5. Train / Validation split (từ train)
+    # 5. Train / Validation split
     X_train, X_val, y_train, y_val = train_test_split(
-    X_train,  # ← Lúc này X_train đã có
-    y_train,
-    test_size=0.2,
-    random_state=42,
-    stratify=y_train
+        X_train,
+        y_train,
+        test_size=0.2,
+        random_state=config["data"]["random_state"],
+        stratify=y_train
     )
 
-    # 6. Preprocess (fit trên train)
+    # 6. Feature scaling (fit on train only)
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train)
     X_val = scaler.transform(X_val)
     X_test = scaler.transform(X_test)
 
-    # 7. Train + train/val loss
+    # 7. Train model with validation loss
     model = build_model(config)
-    model, train_losses, val_losses = train_with_loss(
+    model, train_losses, val_losses = train_with_validation(
         model,
         X_train, y_train,
         X_val, y_val,
         epochs=200
     )
 
-    # 8. Evaluate
+    # 8. Evaluate on test set
     y_pred = evaluate(model, X_test, y_test)
 
     # 9. Visualization
@@ -93,12 +94,13 @@ def main():
         "results/confusion_matrix.png"
     )
 
+    # PCA visualization only (not used for training or evaluation)
     plot_pca_2d_with_boundary(
-    X, y,
-    LogisticRegression(max_iter=1000),
-    "results/pca_2d_boundary.png"
+        X, y,
+        LogisticRegression(max_iter=1000),
+        "results/pca_2d_boundary.png"
     )
-       
+
     plot_pca_3d(
         X, y,
         "results/pca_3d.png"
@@ -109,17 +111,13 @@ def main():
         val_losses,
         "results/train_val_loss.png"
     )
-    
-    scores = cross_val_score(
-    pipeline,
-    X, y,
-    cv=cv,
-    scoring="accuracy"
-    )
+
     plot_cross_validation(
-    scores,
-    "results/cross_validation_chart.png"
+        cv_scores,
+        "results/cross_validation_chart.png"
     )
+
+
 
 if __name__ == "__main__":
     main()
