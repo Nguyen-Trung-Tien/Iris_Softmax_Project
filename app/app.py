@@ -240,7 +240,7 @@ def predict_csv():
 
     return f"""
     <h2>📊 Analysis Result</h2>
-    {df.head(10).to_html(index=False)}
+    {df.head(150).to_html(index=False)}
 
     <h3>Training Loss</h3>
     <img src="/static/loss_curve.png">
