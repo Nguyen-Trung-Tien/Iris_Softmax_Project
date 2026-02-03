@@ -1,36 +1,7 @@
-# Thư viện xử lý dữ liệu và tính toán
 numpy>=1.24.0
 pandas>=2.0.0
-
-# Thư viện Machine Learning
 scikit-learn>=1.2.0
-
-# Thư viện trực quan hóa dữ liệu
 matplotlib>=3.7.0
 seaborn>=0.12.0
-
-# Thư viện đọc cấu hình
 pyyaml>=6.0
-
-File requirements.txt là một thành phần không thể thiếu để giúp người khác (hoặc chính bạn trên một máy tính khác) có thể tái lập môi trường chạy code một cách nhanh chóng và chính xác.
-
-Dưới đây là nội dung tệp requirements.txt được thiết kế riêng cho các thư viện đang sử dụng trong đồ án phân loại Iris:
-
-Nội dung file requirements.txt
-Plaintext
-# Thư viện xử lý dữ liệu và tính toán
-numpy>=1.24.0
-pandas>=2.0.0
-
-# Thư viện Machine Learning
-scikit-learn>=1.2.0
-
-# Thư viện trực quan hóa dữ liệu
-matplotlib>=3.7.0
-seaborn>=0.12.0
-
-# Thư viện đọc cấu hình
-pyyaml>=6.0
-
-Cài đặt nhanh:  mở terminal tại thư mục dự án và chạy câu lệnh sau:
-pip install -r requirements.txt
+flask

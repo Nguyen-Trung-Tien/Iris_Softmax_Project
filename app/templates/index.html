@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iris Softmax Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1><i class="fas fa-leaf"></i> Iris Softmax Pro</h1>
+        <p>Enterprise Grade SGD Classifier & Analytics Dashboard</p>
+    </header>
+
+    <div class="grid-layout">
+        
+        <!-- TRAINING CARD -->
+        <div class="card training-card">
+            <h3><i class="fas fa-brain"></i> Model Training</h3>
+            <p>Train the Stochastic Gradient Descent model with real-time feedback.</p>
+            
+            <button id="trainBtn" onclick="startTrain()">
+                <i class="fas fa-play"></i> Start Training
+            </button>
+
+            <div id="trainingStatus" class="status-box hidden">
+                <div class="spinner"></div>
+                <span id="statusText">Initializing...</span>
+            </div>
+        </div>
+
+        <!-- PREDICTION CARD -->
+        <div class="card prediction-card">
+            <h3><i class="fas fa-bullseye"></i> Single Prediction</h3>
+            <form action="/predict" method="POST">
+                <div class="input-group">
+                    <label>Sepal Length</label>
+                    <input type="number" step="0.1" name="sepal_length" required placeholder="5.1">
+                </div>
+                <div class="input-group">
+                    <label>Sepal Width</label>
+                    <input type="number" step="0.1" name="sepal_width" required placeholder="3.5">
+                </div>
+                <div class="input-group">
+                    <label>Petal Length</label>
+                    <input type="number" step="0.1" name="petal_length" required placeholder="1.4">
+                </div>
+                <div class="input-group">
+                    <label>Petal Width</label>
+                    <input type="number" step="0.1" name="petal_width" required placeholder="0.2">
+                </div>
+                <button type="submit" class="btn-predict">
+                    <i class="fas fa-search"></i> Predict Class
+                </button>
+            </form>
+
+            {% if result and not csv_result %}
+            <div class="result-box">
+                <h4>Prediction Result</h4>
+                <p class="class-label">{{ result.label }}</p>
+                <p class="confidence">Confidence: {{ (result.confidence * 100) | round(2) }}%</p>
+            </div>
+            {% endif %}
+
+            {% if error %}
+            <div class="error-box">
+                <i class="fas fa-exclamation-circle"></i> {{ error }}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- UPLOAD CARD -->
+        <div class="card upload-card">
+            <h3><i class="fas fa-file-csv"></i> Batch Analysis</h3>
+            <p>Upload a CSV file to analyze multiple samples and visualize performance.</p>
+            <form action="/predict_csv" method="POST" enctype="multipart/form-data">
+                <div class="file-drop-area">
+                    <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: #cbd5e1; margin-bottom: 0.5rem;"></i>
+                    <span class="fake-btn">Choose File</span>
+                    <span class="file-msg">or drag and drop here</span>
+                    <input class="file-input" type="file" name="file" accept=".csv" required>
+                </div>
+                <button type="submit" class="btn-upload">
+                    <i class="fas fa-chart-pie"></i> Analyze CSV
+                </button>
+            </form>
+        </div>
+
+        <!-- ANALYSIS RESULTS SECTION (New) -->
+        {% if csv_result %}
+        <div class="analysis-section">
+            <h2 style="margin-bottom: 2rem; font-weight: 700; color: var(--dark); display: flex; align-items: center; gap: 1rem;">
+                <i class="fas fa-chart-line"></i> Analytics Dashboard
+            </h2>
+
+            <div class="metric-summary">
+                <div class="metric-card">
+                    <h3>Model Accuracy</h3>
+                    <div class="metric-value">{{ metrics.accuracy }}</div>
+                </div>
+                <div class="metric-card secondary">
+                    <h3>Total Samples</h3>
+                    <div class="metric-value">{{ metrics.total_samples }}</div>
+                </div>
+            </div>
+
+            <div class="analysis-grid">
+                {% if metrics.has_labels %}
+                <div class="analysis-item">
+                    <h3>Confusion Matrix</h3>
+                    <img src="{{ url_for('static', filename='confusion_matrix.png') }}" alt="Confusion Matrix">
+                </div>
+                {% endif %}
+                
+                <div class="analysis-item">
+                    <h3>2D Feature Space</h3>
+                    <img src="{{ url_for('static', filename='scatter_2d.png') }}" alt="2D Plot">
+                </div>
+
+                <div class="analysis-item">
+                    <h3>Accuracy per Class</h3>
+                    <img src="{{ url_for('static', filename='accuracy_bar.png') }}" alt="Accuracy Bar Chart">
+                </div>
+
+                <div class="analysis-item">
+                    <h3>Loss Curve</h3>
+                    <img src="{{ url_for('static', filename='loss_curve.png') }}" alt="Loss Curve">
+                </div>
+
+                <div class="analysis-item">
+                    <h3>Sample Loss / Uncertainty</h3>
+                    <img src="{{ url_for('static', filename='sample_loss.png') }}" alt="Sample Loss">
+                </div>
+
+                <div class="analysis-item">
+                    <h3>3D Feature Space</h3>
+                    <img src="{{ url_for('static', filename='scatter_3d.png') }}" alt="3D Plot">
+                </div>
+            </div>
+
+            <div class="table-container">
+                <h3>Detailed Predictions</h3>
+                {{ table_html | safe }}
+            </div>
+            
+            <a href="/" style="display: inline-block; margin-top: 2rem; color: var(--primary); font-weight: 600; text-decoration: none;">
+                <i class="fas fa-arrow-left"></i> Back to Home
+            </a>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+
+<script>
+function startTrain() {
+    const btn = document.getElementById("trainBtn");
+    const statusBox = document.getElementById("trainingStatus");
+    const statusText = document.getElementById("statusText");
+
+    btn.disabled = true;
+    statusBox.classList.remove("hidden");
+    statusText.textContent = "Initializing training...";
+
+    fetch("/train", { method: "POST" })
+        .then(r => r.json())
+        .then(data => {
+            if(data.status === "started" || data.status === "already running") {
+                checkStatus();
+            } else {
+                alert("Error starting training: " + JSON.stringify(data));
+                btn.disabled = false;
+                statusBox.classList.add("hidden");
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            btn.disabled = false;
+        });
+}
+
+function checkStatus() {
+    const statusText = document.getElementById("statusText");
+    const btn = document.getElementById("trainBtn");
+    const statusBox = document.getElementById("trainingStatus");
+
+    const interval = setInterval(() => {
+        fetch("/train_status")
+            .then(r => r.json())
+            .then(s => {
+                if (s.running) {
+                    statusText.innerText = `Training Epoch ${s.epoch} / ${s.total}`;
+                } else {
+                    statusText.innerText = "Training Completed Successfully!";
+                    btn.disabled = false;
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        statusBox.classList.add("hidden");
+                    }, 5000);
+                }
+            })
+            .catch(err => console.error("Status check failed", err));
+    }, 1000);
+}
+
+// File Input Animation
+document.querySelector('.file-input').addEventListener('change', function() {
+    const files = this.files;
+    const msg = document.querySelector('.file-msg');
+    if(files.length > 0) {
+        msg.textContent = files[0].name;
+    }
+});
+</script>
+
+</body>
+</html>
