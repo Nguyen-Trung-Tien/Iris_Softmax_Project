@@ -53,10 +53,11 @@ model_pipeline = None
 label_encoder = None
 losses_history = {"train": [], "val": []}
 prediction_history = []  # Feature 3: Prediction History
+current_model_meta = {} # store metadata like accuracy
 
 # LOAD EXISTING MODEL
 def load_artifacts():
-    global model_pipeline, label_encoder, losses_history
+    global model_pipeline, label_encoder, losses_history, current_model_meta
     if os.path.exists(MODEL_PATH):
         try:
             model_pipeline = joblib.load(MODEL_PATH)
@@ -73,13 +74,17 @@ def load_artifacts():
         try:
             with open(LOSS_PATH, "r") as f:
                 losses_history = json.load(f)
+                # Try to infer metadata
+                if isinstance(losses_history, dict) and "val" in losses_history and len(losses_history["val"]) > 0:
+                     # loss is log_loss, not accuracy. Just placeholder.
+                     current_model_meta["accuracy"] = 0.0 # Unknown
         except Exception:
             losses_history = {"train": [], "val": []}
 
 load_artifacts()
 
 def run_training_task():
-    global model_pipeline, label_encoder, losses_history, training_status
+    global model_pipeline, label_encoder, losses_history, training_status, current_model_meta
 
     training_status["running"] = True
     training_status["error"] = None
@@ -144,6 +149,16 @@ def run_training_task():
             ("clf", clf)
         ])
 
+        # Save Training Stats for Drift Detection
+        STATS_PATH = os.path.join(MODEL_DIR, "training_stats.json")
+        stats = {
+            "mean": list(scaler.mean_),
+            "scale": list(scaler.scale_),
+            "features": ["Sepal Length", "Sepal Width", "Petal Length", "Petal Width"]
+        }
+        with open(STATS_PATH, "w") as f:
+            json.dump(stats, f)
+
         losses_history = {
             "train": train_loss,
             "val": val_loss
@@ -154,6 +169,18 @@ def run_training_task():
         joblib.dump(le, LE_PATH)
         with open(LOSS_PATH, "w") as f:
             json.dump(losses_history, f)
+
+        # VERSIONING: Save timestamped copy
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        
+        # Calculate final accuracy on validation set
+        final_val_acc = accuracy_score(y_val, clf.predict(X_val_scaled))
+        current_model_meta["accuracy"] = final_val_acc
+        
+        SAVED_MODELS_DIR = os.path.join(MODEL_DIR, "saved_models")
+        os.makedirs(SAVED_MODELS_DIR, exist_ok=True)
+        version_name = f"model_{timestamp}_acc{final_val_acc:.2f}.pkl"
+        joblib.dump(pipeline, os.path.join(SAVED_MODELS_DIR, version_name))
 
         # Update global memory
         model_pipeline = pipeline
@@ -358,10 +385,6 @@ def predict_csv():
             if np.issubdtype(y_true_raw.dtype, np.number):
                  y_true_raw = pd.Series(y_true_raw).map(label_map).fillna(pd.Series(y_true_raw)).values
             
-            # DEBUG
-            print(f"DEBUG: y_true_raw unique: {np.unique(y_true_raw)}")
-            print(f"DEBUG: y_pred_labels unique: {np.unique(pred_labels)}")
-
             # We compare Strings vs Strings
             # Ensure y_true_raw are strings
             y_true_str = y_true_raw.astype(str)
@@ -375,8 +398,6 @@ def predict_csv():
             plt.figure(figsize=(8, 6))
             sns.heatmap(cm, annot=True, fmt='d', cmap='RdPu', 
                         xticklabels=np.unique(y_pred_str), yticklabels=np.unique(y_pred_str)) 
-            # Note: xticklabels/yticklabels should ideally be union of both or specific order.
-            # But auto-unique is distinct enough for simple view.
             
             plt.xlabel("Predicted")
             plt.ylabel("Actual")
@@ -457,7 +478,6 @@ def predict_csv():
                           np.full(xx.ravel().shape, mean_feat3)]
         
         # Predict on mesh
-        # pipeline predict returns numeric codes since we trained on encoded y
         Z = model_pipeline.predict(mesh_data)
         Z = Z.reshape(xx.shape)
         
@@ -535,5 +555,211 @@ def predict_csv():
         traceback.print_exc()
         return render_template("index.html", error=f"Analysis failed: {str(e)}", history=prediction_history)
 
+
+# === LABS APIs ===
+
+@app.route("/api/explain", methods=["GET"])
+def explain_model():
+    if model_pipeline is None:
+        return jsonify({"error": "Model not trained"}), 503
+        
+    try:
+        clf = model_pipeline.named_steps['clf']
+        # For multi-class, coef_ is (n_classes, n_features). We take mean absolute value per feature.
+        # Check if coef_ exists (Linear models)
+        if hasattr(clf, "coef_"):
+            importances = np.mean(np.abs(clf.coef_), axis=0)
+        else:
+            # Fallback for non-linear models if we ever switch
+            return jsonify({"error": "Model does not support coefficient extraction"}), 400
+
+        feature_names = ["Sepal Length", "Sepal Width", "Petal Length", "Petal Width"]
+        
+        explanations = []
+        for name, val in zip(feature_names, importances):
+            explanations.append({"name": name, "weight": float(val)})
+            
+        # Sort by weight desc
+        explanations.sort(key=lambda x: x["weight"], reverse=True)
+        
+        return jsonify(explanations)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/detect_drift", methods=["POST"])
+def detect_drift():
+    # Load training stats
+    STATS_PATH = os.path.join(MODEL_DIR, "training_stats.json")
+    if not os.path.exists(STATS_PATH):
+        return jsonify({"error": "No training stats found. Train model first."}), 404
+        
+    with open(STATS_PATH, "r") as f:
+        train_stats = json.load(f)
+        
+    file = request.files.get("file")
+    threshold = float(request.form.get("threshold", 20))
+    
+    if not file:
+        return jsonify({"error": "No file uploaded"}), 400
+        
+    try:
+        df = pd.read_csv(file)
+        if df.shape[1] < 4:
+            return jsonify({"error": "CSV needs 4 feature columns"}), 400
+            
+        current_data = df.iloc[:, :4].values
+        current_means = np.mean(current_data, axis=0)
+        
+        ref_means = np.array(train_stats["mean"])
+        
+        alerts = []
+        features = train_stats["features"]
+        
+        max_drift = 0
+        
+        for i, (curr, ref) in enumerate(zip(current_means, ref_means)):
+            # Avoid div by zero
+            if abs(ref) < 1e-9: ref = 1e-9
+            
+            drift_pct = abs(curr - ref) / abs(ref) * 100
+            max_drift = max(max_drift, drift_pct)
+            
+            if drift_pct > threshold:
+                alerts.append({
+                    "feature": features[i],
+                    "drift_pct": float(f"{drift_pct:.1f}"),
+                    "message": f"Deviated by {drift_pct:.1f}%"
+                })
+                
+        status = "safe" if not alerts else "warning"
+        
+        return jsonify({
+            "status": status,
+            "alerts": alerts,
+            "max_drift": float(f"{max_drift:.1f}"),
+            "msg": "Data Drift Detected" if alerts else "No significant data drift detected"
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/lab/train", methods=["POST"])
+def lab_train():
+    # Interactive Training Lab - Trains a temporary model and returns results immediately
+    try:
+        data = request.get_json()
+        alpha = float(data.get("alpha", 0.0001))
+        epochs = int(data.get("epochs", 50))
+        
+        # Load Data (Quickly re-load for playground)
+        if os.path.exists(DATA_PATH):
+            df = pd.read_csv(DATA_PATH)
+        else:
+             return jsonify({"error": "Dataset not found"}), 404
+             
+        X = df.iloc[:, :4].values
+        y_raw = df.iloc[:, 4].values
+        
+        # Map/Encode
+        label_map = {0: "Iris-setosa", 1: "Iris-versicolor", 2: "Iris-virginica"}
+        if np.issubdtype(y_raw.dtype, np.number):
+             y_raw = pd.Series(y_raw).map(label_map).fillna(pd.Series(y_raw)).values
+        
+        le = LabelEncoder()
+        y = le.fit_transform(y_raw)
+        
+        X_train, X_test_lab, y_train, y_test_lab = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+        
+        scaler = StandardScaler()
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test_lab)
+        
+        # Override config for this run
+        from sklearn.linear_model import SGDClassifier
+        clf = SGDClassifier(loss='log_loss', max_iter=1, alpha=alpha, random_state=42, warm_start=True)
+        
+        losses = []
+        import sklearn.metrics
+        
+        for epoch in range(epochs):
+            clf.fit(X_train_scaled, y_train) # warm_start=True keeps weights
+            probs = clf.predict_proba(X_train_scaled)
+            l = sklearn.metrics.log_loss(y_train, probs)
+            losses.append(l)
+            
+        # Final evaluation
+        final_acc = clf.score(X_test_scaled, y_test_lab)
+        
+        # Current Global Model Acc (for comparison)
+        current_acc = "N/A"
+        if 'accuracy' in current_model_meta:
+            current_acc = f"{current_model_meta['accuracy'] * 100:.1f}%"
+            
+        return jsonify({
+            "status": "success",
+            "epochs": list(range(1, epochs+1)),
+            "loss": losses,
+            "new_accuracy": f"{final_acc * 100:.1f}%",
+            "current_accuracy": current_acc,
+            "msg": "🎯 Model converged successfully"
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+# === MODEL VERSIONING APIs ===
+
+@app.route("/api/models", methods=["GET"])
+def list_models():
+    """List all available models in the saved_models directory."""
+    try:
+        SAVED_MODELS_DIR = os.path.join(MODEL_DIR, "saved_models")
+        if not os.path.exists(SAVED_MODELS_DIR):
+            os.makedirs(SAVED_MODELS_DIR, exist_ok=True)
+            
+        files = [f for f in os.listdir(SAVED_MODELS_DIR) if f.endswith(".pkl")]
+        
+        # Sort by creation time (newest first)
+        files.sort(key=lambda x: os.path.getmtime(os.path.join(SAVED_MODELS_DIR, x)), reverse=True)
+        
+        models = []
+        for f in files:
+            path = os.path.join(SAVED_MODELS_DIR, f)
+            timestamp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getmtime(path)))
+            size = f"{os.path.getsize(path) / 1024:.1f} KB"
+            
+            models.append({
+                "filename": f,
+                "created": timestamp,
+                "size": size,
+                "active": False # UI can infer this based on selection or simple check
+            })
+            
+        return jsonify(models)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/models/activate", methods=["POST"])
+def activate_model():
+    """Load a specific model file."""
+    global model_pipeline
+    data = request.get_json()
+    filename = data.get("filename")
+    
+    if not filename:
+        return jsonify({"error": "Filename required"}), 400
+        
+    path = os.path.join(MODEL_DIR, "saved_models", filename)
+    if not os.path.exists(path):
+        return jsonify({"error": "File not found"}), 404
+        
+    try:
+        model_pipeline = joblib.load(path)
+        return jsonify({"status": "success", "msg": f"Activated model: {filename}"})
+    except Exception as e:
+        return jsonify({"error": f"Failed to load model: {str(e)}"}), 500
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)

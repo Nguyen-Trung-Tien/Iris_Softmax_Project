@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Labs - Advanced MLOps</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .labs-section { margin-bottom: 2rem; }
+        .feature-bar-container { display: flex; align-items: center; margin-bottom: 0.5rem; }
+        .feature-name { width: 120px; font-weight: 600; font-size: 0.9rem; }
+        .feature-bar-bg { flex-grow: 1; background: #e2e8f0; height: 10px; border-radius: 5px; overflow: hidden; position: relative; }
+        .feature-bar-fill { background: var(--primary); height: 100%; border-radius: 5px; width: 0%; transition: width 0.5s ease; }
+        .lab-input { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 0.5rem; margin-bottom: 1rem; }
+        .range-wrap { margin-bottom: 1rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h1><i class="fas fa-flask"></i> AI Labs</h1>
+            <p>Advanced experimental features and model management.</p>
+        </div>
+        <nav>
+            <a href="/" class="nav-link"><i class="fas fa-home"></i> Home</a>
+            <a href="/about" class="nav-link"><i class="fas fa-info-circle"></i> Info</a>
+            <a href="/labs" class="nav-link" style="color: var(--primary); background: #f1f5f9;"><i class="fas fa-flask"></i> Labs</a>
+        </nav>
+    </header>
+
+    <div class="grid-layout">
+        
+        <!-- 1. MODEL VERSIONING -->
+        <div class="card full-width labs-section">
+            <h3><i class="fas fa-code-branch"></i> Model Version Management</h3>
+            <p>Quản lý và chuyển đổi các phiên bản mô hình đã huấn luyện mà không cần restart hệ thống.</p>
+            
+            <div style="background: #f8fafc; padding: 1.5rem; border-radius: 1rem; border: 1px solid var(--border-light); display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                <div style="flex-grow: 1;">
+                    <label style="font-weight: 600; font-size: 0.9rem;">Select Model Version:</label>
+                    <select id="model-select" class="lab-input" style="margin-bottom: 0;">
+                        <option>Loading versions...</option>
+                    </select>
+                </div>
+                <div>
+                   <button onclick="activateSelected()" class="btn-predict" style="width: auto; margin-top: 1.2rem; background: #0f172a;">Activate Model / Rollback</button>
+                </div>
+            </div>
+
+            <div id="model-status-msg" style="margin-top: 1rem;"></div>
+            
+            <div id="model-meta-box" style="margin-top: 1rem; display: none; padding: 1rem; border-left: 4px solid var(--primary); background: #f1f5f9;">
+                <p><strong>Training Date:</strong> <span id="meta-date"></span></p>
+                <p><strong>Training Accuracy:</strong> <span id="meta-acc"></span></p>
+                <p><strong>Algorithm:</strong> SGDClassifier (Logistic Regression)</p>
+            </div>
+        </div>
+
+        <!-- 2. FEATURE IMPORTANCE -->
+        <div class="card labs-section">
+            <h3><i class="fas fa-search"></i> Feature Importance Viewer</h3>
+            <p>Hiển thị mức độ ảnh hưởng của từng đặc trưng đến quyết định dự đoán.</p>
+            <div id="feature-chart" style="margin-top: 1.5rem;">
+                <!-- Bars will be injected here -->
+                <p style="text-align: center; color: #64748b;">Loading weights...</p>
+            </div>
+            <p style="font-size: 0.8rem; color: #64748b; margin-top: 1rem;">* Coefficients extracted from linear model (model.coef_)</p>
+        </div>
+
+        <!-- 3. DRIFT DETECTION -->
+        <div class="card labs-section">
+            <h3><i class="fas fa-wind"></i> Input Data Drift Monitoring</h3>
+            <p>So sánh phân phối dữ liệu mới với dữ liệu huấn luyện.</p>
+            
+            <div class="file-drop-area" style="padding: 1rem;">
+                <label>Upload New Data (CSV)</label>
+                <input type="file" id="drift-file" accept=".csv" class="lab-input">
+            </div>
+            
+            <label>Drift Threshold (%):</label>
+            <input type="number" id="drift-threshold" value="20" class="lab-input">
+            
+            <button onclick="runDriftAnalysis()" class="btn-upload" style="margin-top: 0.5rem;">Run Drift Analysis</button>
+            
+            <div id="drift-result" style="margin-top: 1rem;"></div>
+        </div>
+
+        <!-- 4. HYPERPARAMETER PLAYGROUND -->
+        <div class="card full-width labs-section">
+            <h3><i class="fas fa-sliders-h"></i> Interactive Model Training Lab</h3>
+            <p>Tinh chỉnh Hyperparameter và huấn luyện mô hình mới trực tiếp trên giao diện.</p>
+            
+            <div style="display: grid; grid-template-columns: 300px 1fr; gap: 2rem;">
+                <div style="background: #f8fafc; padding: 1.5rem; border-radius: 1rem; border: 1px solid var(--border-light);">
+                    <div class="range-wrap">
+                        <label>Learning Rate (α): <span id="val-alpha">0.0001</span></label>
+                        <input type="range" id="param-alpha" min="0.0001" max="0.01" step="0.0001" value="0.0001" oninput="document.getElementById('val-alpha').innerText = this.value" style="width: 100%;">
+                    </div>
+                    
+                    <div class="range-wrap">
+                        <label>Max Iterations: <span id="val-epochs">50</span></label>
+                        <input type="range" id="param-epochs" min="10" max="200" step="10" value="50" oninput="document.getElementById('val-epochs').innerText = this.value" style="width: 100%;">
+                    </div>
+                    
+                    <button onclick="runLabTraining()" class="btn-predict" style="background: var(--primary);">Train New Model</button>
+                    <!-- "Save as New Version" could be implemented but backend support needed. For now just Train. -->
+                </div>
+                
+                <div>
+                     <canvas id="lossChart" height="200"></canvas>
+                     <div id="lab-results" style="margin-top: 1rem;"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    
+    <footer style="text-align: center; margin-top: 3rem; color: var(--text-muted); font-size: 0.9rem; border-top: 1px solid var(--border-light); padding-top: 2rem;">
+        This system demonstrates real-world MLOps practices:<br>
+        <strong>Versioning • Explainability • Monitoring • Continuous Training</strong>
+    </footer>
+
+</div>
+
+<script>
+    // === 1. MODEL VERSIONING ===
+    async function loadModels() {
+        const select = document.getElementById('model-select');
+        try {
+            const res = await fetch('/api/models');
+            const data = await res.json();
+            
+            select.innerHTML = '';
+            data.versions.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.id;
+                opt.text = `${m.timestamp} - Acc: ${(m.accuracy*100).toFixed(1)}% (${m.id === data.current.id ? 'Active' : 'Archived'})`;
+                select.appendChild(opt);
+            });
+            if(data.versions.length === 0) select.innerHTML = '<option>No versions found</option>';
+        } catch(e) { console.error(e); }
+    }
+
+    async function activateSelected() {
+        const id = document.getElementById('model-select').value;
+        const msg = document.getElementById('model-status-msg');
+        const metaBox = document.getElementById('model-meta-box');
+        
+        try {
+            const res = await fetch('/api/models/activate', {
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({id})
+            });
+            const data = await res.json();
+            
+            if(data.status === 'success') {
+                msg.innerHTML = `<div class="status-box" style="background: #ecfdf5; color: #065f46;">✅ Model activated successfully<br>Active version: ${data.meta.id}</div>`;
+                document.getElementById('meta-date').innerText = data.meta.timestamp;
+                document.getElementById('meta-acc').innerText = (data.meta.accuracy*100).toFixed(1) + "%";
+                metaBox.style.display = 'block';
+                loadModels(); // Refresh list to show active
+            } else {
+                msg.innerHTML = `<div class="error-box">❌ ${data.error}</div>`;
+            }
+        } catch(e) {
+            msg.innerHTML = `<div class="error-box">❌ Failed to load model.</div>`;
+        }
+    }
+
+    // === 2. FEATURE IMPORTANCE ===
+    async function loadImportance() {
+        const container = document.getElementById('feature-chart');
+        try {
+            const res = await fetch('/api/explain');
+            const data = await res.json();
+            
+            if(data.error) {
+                container.innerHTML = `<p style="color:red;">${data.error}</p>`;
+                return;
+            }
+            
+            container.innerHTML = '';
+            const maxVal = Math.max(...data.map(d => d.weight));
+            
+            data.forEach(item => {
+                const pct = (item.weight / maxVal) * 100;
+                container.innerHTML += `
+                    <div class="feature-bar-container" title="Higher value indicates stronger influence">
+                        <div class="feature-name">${item.name}</div>
+                        <div class="feature-bar-bg">
+                            <div class="feature-bar-fill" style="width: ${pct}%"></div>
+                        </div>
+                        <div style="width: 50px; text-align: right; font-size: 0.8rem; margin-left: 10px;">${item.weight.toFixed(2)}</div>
+                    </div>
+                `;
+            });
+        } catch(e) { console.error(e); }
+    }
+
+    // === 3. DRIFT DETECTION ===
+    async function runDriftAnalysis() {
+        const fileInput = document.getElementById('drift-file');
+        const threshold = document.getElementById('drift-threshold').value;
+        const resultDiv = document.getElementById('drift-result');
+        
+        if(!fileInput.files[0]) {
+            alert("Please upload a CSV file");
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        formData.append('threshold', threshold);
+        
+        resultDiv.innerHTML = '<div class="spinner"></div> Analyze...';
+        
+        try {
+            const res = await fetch('/api/detect_drift', {method: 'POST', body: formData});
+            const data = await res.json();
+            
+            if(data.error) {
+                resultDiv.innerHTML = `<div class="error-box">${data.error}</div>`;
+                return;
+            }
+            
+            if(data.status === 'safe') {
+                resultDiv.innerHTML = `<div class="status-box" style="background: #ecfdf5; color: #065f46;">✅ No significant data drift detected. Max drift: ${data.max_drift}%</div>`;
+            } else {
+                let html = `<div class="error-box" style="text-align: left;"><strong>⚠️ Data Drift Detected</strong><br>`;
+                data.alerts.forEach(a => {
+                    html += `- ${a.feature}: ${a.message}<br>`;
+                });
+                html += `<br><em>Recommended Action: Retrain the model with recent data.</em></div>`;
+                resultDiv.innerHTML = html;
+            }
+        } catch(e) {
+             resultDiv.innerHTML = `<div class="error-box">Analysis Failed</div>`;
+        }
+    }
+
+    // === 4. TRAINING LAB ===
+    let chartInstance = null;
+
+    async function runLabTraining() {
+        const alpha = document.getElementById('param-alpha').value;
+        const epochs = document.getElementById('param-epochs').value;
+        const resDiv = document.getElementById('lab-results');
+        
+        resDiv.innerHTML = '<div class="spinner"></div> Training...';
+        
+        try {
+            const res = await fetch('/api/lab/train', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({alpha, epochs})
+            });
+            const data = await res.json();
+            
+            if(data.error) {
+                resDiv.innerHTML = `<div class="error-box">${data.error}</div>`;
+                return;
+            }
+            
+            // Plot Chart
+            const ctx = document.getElementById('lossChart').getContext('2d');
+            if(chartInstance) chartInstance.destroy();
+            
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.epochs,
+                    datasets: [{
+                        label: 'Training Loss',
+                        data: data.loss,
+                        borderColor: '#6366f1',
+                        tension: 0.1
+                    }]
+                },
+                options: { responsive: true, scales: { x: { display: true, title: {display: true, text: 'Epochs'}}} }
+            });
+            
+            resDiv.innerHTML = `
+                <div class="status-box" style="background: #ecfdf5; color: #065f46; display: block;">
+                    ${data.msg}<br>
+                    <strong>New Model Accuracy:</strong> ${data.new_accuracy} (Current: ${data.current_accuracy})
+                </div>
+            `;
+            
+        } catch(e) {
+            resDiv.innerHTML = `<div class="error-box">Training Failed</div>`;
+        }
+    }
+
+    // INIT
+    loadModels();
+    loadImportance();
+</script>
+
+</body>
+</html>

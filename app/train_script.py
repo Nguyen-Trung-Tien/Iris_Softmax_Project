@@ -4,6 +4,7 @@ import os
 import json
 import numpy as np
 import sys
+import time
 
 # Ensure we can import from src
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -86,6 +87,16 @@ def main():
     joblib.dump(le, LE_PATH)
     with open(LOSS_PATH, "w") as f:
         json.dump(losses, f)
+
+    # VERSIONING: Save timestamped copy
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    val_acc_chk = accuracy_score(y_val, clf.predict(X_val_scaled))
+    
+    SAVED_MODELS_DIR = os.path.join(MODEL_DIR, "saved_models")
+    os.makedirs(SAVED_MODELS_DIR, exist_ok=True)
+    version_name = f"model_{timestamp}_acc{val_acc_chk:.2f}.pkl"
+    joblib.dump(pipeline, os.path.join(SAVED_MODELS_DIR, version_name))
+    print(f"Saved version: {version_name}")
 
     # Evaluate
     train_acc = accuracy_score(y_train, clf.predict(X_train_scaled))

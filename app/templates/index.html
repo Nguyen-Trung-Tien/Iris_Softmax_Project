@@ -3,272 +3,353 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iris Softmax Pro</title>
+    <title>Iris MLOps Platform</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
 <div class="container">
     <header style="display: flex; justify-content: space-between; align-items: center;">
         <div>
-            <h1><i class="fas fa-leaf"></i> Iris Softmax Pro</h1>
-            <p>Enterprise Grade SGD Classifier & Analytics Dashboard</p>
+            <h1><i class="fas fa-cubes"></i> Iris MLOps Platform</h1>
+            <p>Enterprise AI Management: Train, Predict, Monitor, Explain</p>
         </div>
         <nav>
-            <a href="/" class="nav-link"><i class="fas fa-home"></i> Home</a>
-            <a href="/about" class="nav-link"><i class="fas fa-info-circle"></i> Model Info</a>
+            <!-- <a href="/" class="nav-link"><i class="fas fa-home"></i> App</a> -->
+            <a href="/about" class="nav-link"><i class="fas fa-book"></i> Docs</a>
         </nav>
     </header>
 
-    <div class="grid-layout">
-        
-        <!-- TRAINING CARD -->
-        <div class="card training-card">
-            <h3><i class="fas fa-brain"></i> Model Training</h3>
-            <p>Train the Stochastic Gradient Descent model with real-time feedback.</p>
+    <!-- TABS -->
+    <div class="tabs">
+        <button class="tab-btn active" data-target="dashboard">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+        </button>
+        <button class="tab-btn" data-target="models">
+            <i class="fas fa-code-branch"></i> Versioning
+        </button>
+        <button class="tab-btn" data-target="insights">
+            <i class="fas fa-lightbulb"></i> Insights (XAI & Drift)
+        </button>
+        <button class="tab-btn" data-target="lab">
+            <i class="fas fa-flask"></i> Training Lab
+        </button>
+    </div>
+
+    <!-- 1. DASHBOARD TAB (Prediction & Training) -->
+    <div id="dashboard" class="tab-pane active">
+        <div class="grid-layout">
             
-            <button id="trainBtn" onclick="startTrain()">
-                <i class="fas fa-play"></i> Start Training
-            </button>
-
-            <div id="trainingStatus" class="status-box hidden">
-                <div class="spinner"></div>
-                <span id="statusText">Initializing...</span>
-            </div>
-        </div>
-
-        <!-- PREDICTION CARD -->
-        <div class="card prediction-card">
-            <h3><i class="fas fa-bullseye"></i> Single Prediction</h3>
-            <form action="/predict" method="POST">
-                <div class="input-group">
-                    <label>Sepal Length</label>
-                    <input type="number" step="0.1" name="sepal_length" required placeholder="5.1">
-                </div>
-                <div class="input-group">
-                    <label>Sepal Width</label>
-                    <input type="number" step="0.1" name="sepal_width" required placeholder="3.5">
-                </div>
-                <div class="input-group">
-                    <label>Petal Length</label>
-                    <input type="number" step="0.1" name="petal_length" required placeholder="1.4">
-                </div>
-                <div class="input-group">
-                    <label>Petal Width</label>
-                    <input type="number" step="0.1" name="petal_width" required placeholder="0.2">
-                </div>
-                <button type="submit" class="btn-predict">
-                    <i class="fas fa-search"></i> Predict Class
-                </button>
-            </form>
-
-            {% if result and not csv_result %}
-            <div class="result-box">
-                <h4>Prediction Result</h4>
-                <p class="class-label">{{ result.label }}</p>
-                <p class="confidence">Confidence: {{ (result.confidence * 100) | round(2) }}%</p>
+            <!-- TRAINING CARD -->
+            <div class="card training-card">
+                <h3><i class="fas fa-brain"></i> Model Training</h3>
+                <p>Train the Production Model (SGD) on the full dataset.</p>
                 
-                <!-- Probability Bars -->
-                <div class="prob-container" style="margin-top: 1rem;">
-                    {% for item in result.probs %}
-                    <div class="prob-item" style="margin-bottom: 0.5rem;">
-                        <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
-                            <span>{{ item.name }}</span>
-                            <span>{{ (item.prob * 100) | round(1) }}%</span>
-                        </div>
-                        <div class="prob-bar-bg" style="background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden;">
-                            <div class="prob-bar-fill" style="width: {{ item.prob * 100 }}%; background: var(--primary); height: 100%;"></div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-
-            {% if error %}
-            <div class="error-box">
-                <i class="fas fa-exclamation-circle"></i> {{ error }}
-            </div>
-            {% endif %}
-        </div>
-
-        <!-- UPLOAD CARD -->
-        <div class="card upload-card">
-            <h3><i class="fas fa-file-csv"></i> Batch Analysis</h3>
-            <p>Upload a CSV file to analyze multiple samples and visualize performance.</p>
-            <form action="/predict_csv" method="POST" enctype="multipart/form-data">
-                <div class="file-drop-area">
-                    <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: #cbd5e1; margin-bottom: 0.5rem;"></i>
-                    <span class="fake-btn">Choose File</span>
-                    <span class="file-msg">or drag and drop here</span>
-                    <input class="file-input" type="file" name="file" accept=".csv" required>
-                </div>
-                <button type="submit" class="btn-upload">
-                    <i class="fas fa-chart-pie"></i> Analyze CSV
+                <button id="trainBtn" onclick="startTrain()">
+                    <i class="fas fa-play"></i> Start Full Training
                 </button>
-            </form>
-        </div>
 
-        <!-- HISTORY SECTION -->
-        <div class="card full-width" style="grid-column: 1 / -1;">
-            <h3><i class="fas fa-history"></i> Prediction History (Recent 10)</h3>
-            <div class="table-container">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Inputs (SL, SW, PL, PW)</th>
-                            <th>Prediction</th>
-                            <th>Confidence</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in history %}
-                        <tr>
-                            <td>{{ item.time }}</td>
-                            <td>{{ item.input.sepal_length }}, {{ item.input.sepal_width }}, {{ item.input.petal_length }}, {{ item.input.petal_width }}</td>
-                            <td><span class="badge">{{ item.prediction }}</span></td>
-                            <td>{{ (item.confidence * 100) | round(1) }}%</td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="4" style="text-align: center; color: #64748b;">No predictions yet.</td>
-                        </tr>
+                <div id="trainingStatus" class="status-box hidden">
+                    <div class="spinner"></div>
+                    <span id="statusText">Initializing...</span>
+                </div>
+            </div>
+
+            <!-- PREDICTION CARD -->
+            <div class="card prediction-card">
+                <h3><i class="fas fa-bullseye"></i> Live Prediction</h3>
+                <form action="/predict" method="POST">
+                    <div class="input-group">
+                        <label>Sepal Length</label>
+                        <input type="number" step="0.1" name="sepal_length" required placeholder="5.1">
+                    </div>
+                    <div class="input-group">
+                        <label>Sepal Width</label>
+                        <input type="number" step="0.1" name="sepal_width" required placeholder="3.5">
+                    </div>
+                    <div class="input-group">
+                        <label>Petal Length</label>
+                        <input type="number" step="0.1" name="petal_length" required placeholder="1.4">
+                    </div>
+                    <div class="input-group">
+                        <label>Petal Width</label>
+                        <input type="number" step="0.1" name="petal_width" required placeholder="0.2">
+                    </div>
+                    <button type="submit" class="btn-predict">
+                        <i class="fas fa-search"></i> Predict Class
+                    </button>
+                </form>
+
+                {% if result and not csv_result %}
+                <div class="result-box">
+                    <h4>Prediction Result</h4>
+                    <p class="class-label">{{ result.label }}</p>
+                    <p class="confidence">Confidence: {{ (result.confidence * 100) | round(2) }}%</p>
+                    
+                    <div class="prob-container" style="margin-top: 1rem;">
+                        {% for item in result.probs %}
+                        <div class="prob-item" style="margin-bottom: 0.5rem;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                                <span>{{ item.name }}</span>
+                                <span>{{ (item.prob * 100) | round(1) }}%</span>
+                            </div>
+                            <div class="prob-bar-bg" style="background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden;">
+                                <div class="prob-bar-fill" style="width: {{ item.prob * 100 }}%; background: var(--primary); height: 100%;"></div>
+                            </div>
+                        </div>
                         {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- ANALYSIS RESULTS SECTION (New) -->
-        {% if csv_result %}
-        <!-- ... (Analysis section remains same, just visually separated) ... -->
-        <div class="analysis-section" style="grid-column: 1 / -1; margin-top: 2rem; border-top: 1px solid #e2e8f0; padding-top: 2rem;">
-            <h2 style="margin-bottom: 2rem; font-weight: 700; color: var(--dark); display: flex; align-items: center; gap: 1rem;">
-                <i class="fas fa-chart-line"></i> Analytics Dashboard
-            </h2>
-
-            <div class="metric-summary">
-                <div class="metric-card">
-                    <h3>Model Accuracy</h3>
-                    <div class="metric-value">{{ metrics.accuracy }}</div>
-                </div>
-                <div class="metric-card secondary">
-                    <h3>Total Samples</h3>
-                    <div class="metric-value">{{ metrics.total_samples }}</div>
-                </div>
-            </div>
-
-            <div class="analysis-grid">
-                {% if metrics.has_labels %}
-                <div class="analysis-item">
-                    <h3>Confusion Matrix</h3>
-                    <img src="{{ url_for('static', filename='confusion_matrix.png') }}" alt="Confusion Matrix">
+                    </div>
                 </div>
                 {% endif %}
-                
-                <div class="analysis-item">
-                    <h3>2D Feature Space</h3>
-                    <img src="{{ url_for('static', filename='scatter_2d.png') }}" alt="2D Plot">
-                </div>
 
-                <div class="analysis-item">
-                    <h3>Accuracy per Class</h3>
-                    <img src="{{ url_for('static', filename='accuracy_bar.png') }}" alt="Accuracy Bar Chart">
+                {% if error %}
+                <div class="error-box">
+                    <i class="fas fa-exclamation-circle"></i> {{ error }}
                 </div>
-
-                <div class="analysis-item">
-                    <h3>Loss Curve</h3>
-                    <img src="{{ url_for('static', filename='loss_curve.png') }}" alt="Loss Curve">
-                </div>
-
-                <div class="analysis-item">
-                    <h3>Sample Loss / Uncertainty</h3>
-                    <img src="{{ url_for('static', filename='sample_loss.png') }}" alt="Sample Loss">
-                </div>
-
-                <div class="analysis-item">
-                    <h3>3D Feature Space</h3>
-                    <img src="{{ url_for('static', filename='scatter_3d.png') }}" alt="3D Plot">
-                </div>
+                {% endif %}
             </div>
 
-            <div class="table-container">
-                <h3>Detailed Predictions</h3>
-                {{ table_html | safe }}
+            <!-- UPLOAD CARD -->
+            <div class="card upload-card">
+                <h3><i class="fas fa-file-csv"></i> Batch Analysis</h3>
+                <p>Upload CSV for Batch Prediction & Analytics.</p>
+                <form action="/predict_csv" method="POST" enctype="multipart/form-data" id="uploadForm">
+                    <div class="file-drop-area" id="dropZone">
+                        <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                        <span class="file-msg">Drag & Drop or Click to Upload</span>
+                        <input class="file-input" type="file" name="file" accept=".csv" required id="fileInput">
+                    </div>
+                    <button type="submit" class="btn-upload">
+                        <i class="fas fa-chart-pie"></i> Analyze CSV
+                    </button>
+                </form>
             </div>
             
-            <a href="/" style="display: inline-block; margin-top: 2rem; color: var(--primary); font-weight: 600; text-decoration: none;">
-                <i class="fas fa-arrow-left"></i> Back to Home
-            </a>
-        </div>
-        {% endif %}
+            <!-- HISTORY -->
+            <div class="card full-width">
+                <h3><i class="fas fa-history"></i> Recent Activity</h3>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr><th>Time</th><th>Inputs</th><th>Prediction</th><th>Confidence</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for item in history %}
+                            <tr>
+                                <td>{{ item.time }}</td>
+                                <td>{{ item.input.sepal_length }}, {{ item.input.sepal_width }}...</td>
+                                <td><span class="badge">{{ item.prediction }}</span></td>
+                                <td>{{ (item.confidence * 100) | round(1) }}%</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" style="text-align: center;">No history.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
+            <!-- BATCH RESULTS (Existing) -->
+            {% if csv_result %}
+            <div class="card full-width analysis-section">
+                <h2><i class="fas fa-chart-line"></i> Batch Analysis Results</h2>
+                
+                <div class="metric-summary">
+                    <strong>Accuracy: {{ metrics.accuracy }}</strong> | Samples: {{ metrics.total_samples }}
+                </div>
+
+                <div class="analysis-grid">
+                    {% if metrics.has_labels %}
+                    <div class="analysis-item">
+                        <h3>Confusion Matrix</h3>
+                        <img src="{{ url_for('static', filename='confusion_matrix.png') }}" >
+                    </div>
+                    {% endif %}
+                    <div class="analysis-item">
+                        <h3>2D Decision Boundary</h3>
+                        <img src="{{ url_for('static', filename='scatter_2d.png') }}" >
+                    </div>
+                    <div class="analysis-item">
+                        <h3>Class Accuracy</h3>
+                        <img src="{{ url_for('static', filename='accuracy_bar.png') }}" >
+                    </div>
+                    <div class="analysis-item">
+                        <h3>Training Loss Curve</h3>
+                        <img src="{{ url_for('static', filename='loss_curve.png') }}" >
+                    </div>
+                    <div class="analysis-item">
+                        <h3>Prediction Uncertainty</h3>
+                        <img src="{{ url_for('static', filename='sample_loss.png') }}" >
+                    </div>
+                    <div class="analysis-item">
+                        <h3>3D Feature Space</h3>
+                        <img src="{{ url_for('static', filename='scatter_3d.png') }}" >
+                    </div>
+                </div>
+                
+                <div class="table-container" style="margin-top: 1rem;">
+                    {{ table_html | safe }}
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
     </div>
+
+    <!-- 2. MODEL VERSIONING TAB -->
+    <div id="models" class="tab-pane">
+        <div class="card full-width">
+            <h3><i class="fas fa-server"></i> Model Registry</h3>
+            <p>Manage trained model versions. Rollback to previous checkpoints instantly.</p>
+            <div id="modelList">Loading...</div>
+        </div>
+    </div>
+
+    <!-- 3. INSIGHTS TAB (Drift & XAI) -->
+    <div id="insights" class="tab-pane">
+        <div class="grid-layout">
+            <!-- Feature Importance -->
+            <div class="card full-width">
+                <h3><i class="fas fa-search-dollar"></i> Feature Importance (XAI)</h3>
+                <p>Understanding which features contribute most to the model's decisions (Mean |Coefficient|).</p>
+                <div style="height: 300px;">
+                    <canvas id="importanceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Drift Detection -->
+            <div class="card full-width">
+                <h3><i class="fas fa-wind"></i> Data Drift Detection</h3>
+                <p>Compare new data against the training baseline to detect distribution shifts.</p>
+                
+                <div style="margin-bottom: 1rem;">
+                    <div class="file-drop-area" id="driftDropZone">
+                        <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                        <span class="file-msg" id="driftFileMsg">Drag & Drop Drift Data CSV</span>
+                        <input class="file-input" type="file" id="driftFile" accept=".csv">
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
+                    <div style="flex-grow: 1;"></div> 
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label style="font-weight: 500; color: var(--gray);">Threshold (%):</label>
+                        <input type="number" id="driftThreshold" value="20" style="width: 80px; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 6px;">
+                    </div>
+                    <button onclick="checkDrift()" class="btn-secondary">
+                        <i class="fas fa-microscope"></i> Detect Drift
+                    </button>
+                </div>
+
+                <div id="driftResult"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. TRAINING LAB TAB -->
+    <div id="lab" class="tab-pane">
+        <div class="grid-layout">
+            <div class="card">
+                <h3><i class="fas fa-sliders-h"></i> Hyperparameter Tuning</h3>
+                <p>Experiment with SGD parameters in a sandbox environment.</p>
+                
+                <div class="slider-container">
+                    <label>Learning Rate (Alpha): <span id="valAlpha" style="font-weight:bold; color:var(--primary);">0.0001</span></label>
+                    <input type="range" id="labAlpha" min="0.0001" max="0.1" step="0.0001" value="0.0001" class="range-slider">
+                </div>
+                
+                <div class="slider-container">
+                    <label>Epochs: <span id="valEpochs" style="font-weight:bold; color:var(--primary);">50</span></label>
+                    <input type="range" id="labEpochs" min="10" max="200" step="10" value="50" class="range-slider">
+                </div>
+
+                <button class="btn-lab" onclick="runLab()">
+                    <i class="fas fa-flask"></i> Run Experiment
+                </button>
+
+                <div class="lab-metrics">
+                    <div>
+                        <div style="font-size:0.8rem; color:var(--gray);">New Validation Acc</div>
+                        <div class="metric-val" id="labNewAcc">--</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.8rem; color:var(--gray);">Current Production Acc</div>
+                        <div class="metric-val" id="labCurrAcc">--</div>
+                    </div>
+                </div>
+                <div id="labResult"></div>
+            </div>
+
+            <div class="card">
+                <h3><i class="fas fa-chart-area"></i> Real-time Loss Curve</h3>
+                <canvas id="labChart"></canvas>
+            </div>
+        </div>
+    </div>
+
 </div>
 
+<!-- Scripts -->
+<script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 <script>
-function startTrain() {
-    const btn = document.getElementById("trainBtn");
-    const statusBox = document.getElementById("trainingStatus");
-    const statusText = document.getElementById("statusText");
-
-    btn.disabled = true;
-    statusBox.classList.remove("hidden");
-    statusText.textContent = "Initializing training...";
-
-    fetch("/train", { method: "POST" })
-        .then(r => r.json())
-        .then(data => {
-            if(data.status === "started" || data.status === "already running") {
-                checkStatus();
-            } else {
-                alert("Error starting training: " + JSON.stringify(data));
-                btn.disabled = false;
-                statusBox.classList.add("hidden");
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            btn.disabled = false;
-        });
-}
-
-function checkStatus() {
-    const statusText = document.getElementById("statusText");
-    const btn = document.getElementById("trainBtn");
-    const statusBox = document.getElementById("trainingStatus");
-
-    const interval = setInterval(() => {
-        fetch("/train_status")
+    // Keep keep-alive or minimal inline logic if needed, but mostly in dashboard.js
+    // Re-implement startTrain/checkStatus because they were inline in the old file
+    function startTrain() {
+        const btn = document.getElementById("trainBtn");
+        const statusBox = document.getElementById("trainingStatus");
+        const statusText = document.getElementById("statusText");
+    
+        btn.disabled = true;
+        statusBox.classList.remove("hidden");
+        statusText.textContent = "Initializing training...";
+    
+        fetch("/train", { method: "POST" })
             .then(r => r.json())
-            .then(s => {
-                if (s.running) {
-                    statusText.innerText = `Training Epoch ${s.epoch} / ${s.total}`;
+            .then(data => {
+                if(data.status === "started" || data.status === "already running") {
+                    checkStatus();
                 } else {
-                    statusText.innerText = "Training Completed Successfully!";
+                    alert("Error starting training: " + JSON.stringify(data));
                     btn.disabled = false;
-                    clearInterval(interval);
-                    setTimeout(() => {
-                        statusBox.classList.add("hidden");
-                    }, 5000);
+                    statusBox.classList.add("hidden");
                 }
             })
-            .catch(err => console.error("Status check failed", err));
-    }, 1000);
-}
-
-// File Input Animation
-document.querySelector('.file-input').addEventListener('change', function() {
-    const files = this.files;
-    const msg = document.querySelector('.file-msg');
-    if(files.length > 0) {
-        msg.textContent = files[0].name;
+            .catch(err => {
+                console.error(err);
+                btn.disabled = false;
+            });
     }
-});
+    
+    function checkStatus() {
+        const statusText = document.getElementById("statusText");
+        const btn = document.getElementById("trainBtn");
+        const statusBox = document.getElementById("trainingStatus");
+    
+        const interval = setInterval(() => {
+            fetch("/train_status")
+                .then(r => r.json())
+                .then(s => {
+                    if (s.running) {
+                        statusText.innerText = `Training Epoch ${s.epoch} / ${s.total}`;
+                    } else {
+                        statusText.innerText = "Training Completed Successfully!";
+                        btn.disabled = false;
+                        clearInterval(interval);
+                        setTimeout(() => {
+                            statusBox.classList.add("hidden");
+                            // Optional: Refresh model list if on that tab
+                             if(document.querySelector('.tab-btn[data-target="models"]').classList.contains('active')) loadModels();
+                        }, 2000);
+                    }
+                })
+                .catch(err => console.error("Status check failed", err));
+        }, 1000);
+    }
 </script>
 
 </body>
