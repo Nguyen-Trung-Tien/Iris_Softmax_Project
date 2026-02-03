@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Info - Iris Softmax Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+<div class="container">
+    <header style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h1><i class="fas fa-info-circle"></i> Model Information</h1>
+            <p>Detailed metrics and visualizations for the current model.</p>
+        </div>
+        <nav>
+            <a href="/" class="nav-link"><i class="fas fa-home"></i> Home</a>
+            <a href="/about" class="nav-link"><i class="fas fa-info-circle"></i> Model Info</a>
+        </nav>
+    </header>
+
+    <div class="grid-layout" style="margin-bottom: 2rem;">
+        <div class="card">
+            <h3><i class="fas fa-server"></i> Model Architecture</h3>
+            <p><strong>Type:</strong> {{ model_info.type }}</p>
+            <p><strong>Algorithm:</strong> {{ model_info.name }}</p>
+            <p><strong>Classes:</strong> {{ model_info.classes | join(', ') }}</p>
+            <p style="margin-top: 1rem; font-size: 0.9em; color: var(--text-muted);">
+                The model uses Stochastic Gradient Descent optimization to minimize the Log Loss function, effectively performing Softmax Regression for multi-class classification.
+            </p>
+        </div>
+
+        <div class="card">
+            <h3><i class="fas fa-cogs"></i> Configuration</h3>
+            <p><strong>Max Epochs:</strong> {{ config.model.max_iter }}</p>
+            <p><strong>Learning Rate (Alpha):</strong> {{ config.model.alpha }}</p>
+            <p><strong>Test Split Size:</strong> {{ config.data.test_size }}</p>
+            <p><strong>Random State:</strong> {{ config.data.get('random_state', 'None') }}</p>
+        </div>
+        
+        <div class="card">
+            <h3><i class="fas fa-database"></i> Dataset Info</h3>
+            <p><strong>Source:</strong> Iris Linear Benchmark</p>
+            <p><strong>Total Samples:</strong> {{ model_info.dataset_size }}</p>
+            <p><strong>Features (4):</strong></p>
+            <ul style="list-style: none; padding-left: 1rem; color: var(--text-muted); font-size: 0.9em;">
+                {% for feature in model_info.features %}
+                <li><i class="fas fa-check" style="color: var(--primary); font-size: 0.8em; margin-right: 0.5rem;"></i> {{ feature }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="card" style="border-color: var(--primary);">
+            <h3><i class="fas fa-clipboard-check"></i> Training Status</h3>
+            {% if training_status.running %}
+                <p style="color: var(--primary); font-weight: bold;">Training in progress: Epoch {{ training_status.epoch }} / {{ training_status.total }}</p>
+            {% elif training_status.epoch > 0 %}
+                <p style="color: #10b981; font-weight: bold;">Training Completed ({{ training_status.epoch }} epochs)</p>
+            {% else %}
+                <p style="color: #64748b;">No training session has been run since server start.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="analysis-grid" style="margin-top: 2rem;">
+        {% if images.loss_curve %}
+        <div class="analysis-item">
+            <h3>Training Process (Loss)</h3>
+            <img src="{{ url_for('static', filename='loss_curve.png') }}" alt="Loss Curve">
+        </div>
+        {% endif %}
+
+        {% if images.confusion_matrix %}
+        <div class="analysis-item">
+            <h3>Confusion Matrix</h3>
+            <img src="{{ url_for('static', filename='confusion_matrix.png') }}" alt="Confusion Matrix">
+        </div>
+        {% endif %}
+
+        {% if images.accuracy_bar %}
+        <div class="analysis-item">
+            <h3>Accuracy Analysis</h3>
+            <img src="{{ url_for('static', filename='accuracy_bar.png') }}" alt="Accuracy Bar">
+        </div>
+        {% endif %}
+
+        {% if images.scatter_2d %}
+        <div class="analysis-item">
+            <h3>Decision Boundaries</h3>
+            <img src="{{ url_for('static', filename='scatter_2d.png') }}" alt="2D Boundaries">
+        </div>
+        {% endif %}
+    </div>
+    
+    {% if not images.loss_curve and not images.confusion_matrix %}
+        <div class="card" style="text-align: center; color: #64748b; padding: 3rem;">
+            <i class="fas fa-image" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+            <p>No visualization artifacts found. Please train the model and run an evaluation first.</p>
+        </div>
+    {% endif %}
+
+    <div style="margin-top: 2rem; text-align: center;">
+        <a href="/" class="btn-predict" style="text-decoration: none; display: inline-block; width: auto; padding: 0.8rem 2rem;">
+            Back to Application
+        </a>
+    </div>
+
+</div>
+
+</body>
+</html>

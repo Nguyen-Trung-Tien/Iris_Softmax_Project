@@ -12,9 +12,15 @@
 <body>
 
 <div class="container">
-    <header>
-        <h1><i class="fas fa-leaf"></i> Iris Softmax Pro</h1>
-        <p>Enterprise Grade SGD Classifier & Analytics Dashboard</p>
+    <header style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h1><i class="fas fa-leaf"></i> Iris Softmax Pro</h1>
+            <p>Enterprise Grade SGD Classifier & Analytics Dashboard</p>
+        </div>
+        <nav>
+            <a href="/" class="nav-link"><i class="fas fa-home"></i> Home</a>
+            <a href="/about" class="nav-link"><i class="fas fa-info-circle"></i> Model Info</a>
+        </nav>
     </header>
 
     <div class="grid-layout">
@@ -64,6 +70,21 @@
                 <h4>Prediction Result</h4>
                 <p class="class-label">{{ result.label }}</p>
                 <p class="confidence">Confidence: {{ (result.confidence * 100) | round(2) }}%</p>
+                
+                <!-- Probability Bars -->
+                <div class="prob-container" style="margin-top: 1rem;">
+                    {% for item in result.probs %}
+                    <div class="prob-item" style="margin-bottom: 0.5rem;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                            <span>{{ item.name }}</span>
+                            <span>{{ (item.prob * 100) | round(1) }}%</span>
+                        </div>
+                        <div class="prob-bar-bg" style="background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden;">
+                            <div class="prob-bar-fill" style="width: {{ item.prob * 100 }}%; background: var(--primary); height: 100%;"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
             {% endif %}
 
@@ -91,9 +112,41 @@
             </form>
         </div>
 
+        <!-- HISTORY SECTION -->
+        <div class="card full-width" style="grid-column: 1 / -1;">
+            <h3><i class="fas fa-history"></i> Prediction History (Recent 10)</h3>
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Inputs (SL, SW, PL, PW)</th>
+                            <th>Prediction</th>
+                            <th>Confidence</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in history %}
+                        <tr>
+                            <td>{{ item.time }}</td>
+                            <td>{{ item.input.sepal_length }}, {{ item.input.sepal_width }}, {{ item.input.petal_length }}, {{ item.input.petal_width }}</td>
+                            <td><span class="badge">{{ item.prediction }}</span></td>
+                            <td>{{ (item.confidence * 100) | round(1) }}%</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: #64748b;">No predictions yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- ANALYSIS RESULTS SECTION (New) -->
         {% if csv_result %}
-        <div class="analysis-section">
+        <!-- ... (Analysis section remains same, just visually separated) ... -->
+        <div class="analysis-section" style="grid-column: 1 / -1; margin-top: 2rem; border-top: 1px solid #e2e8f0; padding-top: 2rem;">
             <h2 style="margin-bottom: 2rem; font-weight: 700; color: var(--dark); display: flex; align-items: center; gap: 1rem;">
                 <i class="fas fa-chart-line"></i> Analytics Dashboard
             </h2>

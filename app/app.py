@@ -52,6 +52,7 @@ training_status = {
 model_pipeline = None
 label_encoder = None
 losses_history = {"train": [], "val": []}
+prediction_history = []  # Feature 3: Prediction History
 
 # LOAD EXISTING MODEL
 def load_artifacts():
@@ -172,7 +173,33 @@ def run_training_task():
 # ROUTES
 @app.route("/")
 def home():
-    return render_template("index.html")
+    return render_template("index.html", history=prediction_history)
+
+@app.route("/about")
+def about():
+    # Feature 4: Model Info Page
+    # Load config for display
+    try:
+        config = load_config()
+    except:
+        config = {"model": {"max_iter": "Unknown", "alpha": "Unknown"}, "data": {"test_size": "Unknown"}}
+
+    model_info = {
+        "name": "Stochastic Gradient Descent (SGD) Classifier",
+        "type": "Linear Classifier with Log Loss (Softmax)",
+        "features": ["Sepal Length", "Sepal Width", "Petal Length", "Petal Width"],
+        "classes": ["Iris-setosa", "Iris-versicolor", "Iris-virginica"],
+        "dataset_size": 150,
+    }
+
+    # Pass check to see if images exist
+    images = {
+        "loss_curve": os.path.exists(os.path.join(STATIC_DIR, "loss_curve.png")),
+        "confusion_matrix": os.path.exists(os.path.join(STATIC_DIR, "confusion_matrix.png")),
+        "scatter_2d": os.path.exists(os.path.join(STATIC_DIR, "scatter_2d.png")),
+        "accuracy_bar": os.path.exists(os.path.join(STATIC_DIR, "accuracy_bar.png")),
+    }
+    return render_template("about.html", images=images, training_status=training_status, config=config, model_info=model_info)
 
 @app.route("/train", methods=["POST"])
 def train():
@@ -194,16 +221,17 @@ def train_status():
 @app.route("/predict", methods=["POST"])
 def predict():
     if model_pipeline is None or label_encoder is None:
-        return render_template("index.html", error="Model has not been trained yet.")
+        return render_template("index.html", error="Model has not been trained yet.", history=prediction_history)
 
     try:
         # Extract features
-        features = [
-            float(request.form["sepal_length"]),
-            float(request.form["sepal_width"]),
-            float(request.form["petal_length"]),
-            float(request.form["petal_width"])
-        ]
+        features_dict = {
+            "sepal_length": float(request.form["sepal_length"]),
+            "sepal_width": float(request.form["sepal_width"]),
+            "petal_length": float(request.form["petal_length"]),
+            "petal_width": float(request.form["petal_width"])
+        }
+        features = list(features_dict.values())
         
         # Predict
         # Pipeline handles scaling automatically
@@ -215,30 +243,94 @@ def predict():
         pred_label = label_encoder.inverse_transform([pred_idx])[0]
         confidence = float(np.max(probs))
 
+        # Feature 2: Probability Distribution
+        class_probs = []
+        for i, prob in enumerate(probs):
+            class_name = label_encoder.inverse_transform([i])[0]
+            class_probs.append({"name": class_name, "prob": float(prob)})
+        
+        # Sort by probability descending
+        class_probs.sort(key=lambda x: x["prob"], reverse=True)
+
+        # Feature 3: Update History
+        prediction_record = {
+            "time": time.strftime("%H:%M:%S"),
+            "input": features_dict,
+            "prediction": pred_label,
+            "confidence": confidence
+        }
+        # Prepend to history, keep max 10
+        prediction_history.insert(0, prediction_record)
+        if len(prediction_history) > 10:
+            prediction_history.pop()
+
         return render_template(
             "index.html",
             result={
                 "label": pred_label,
-                "confidence": confidence
-            }
+                "confidence": confidence,
+                "probs": class_probs
+            },
+            history=prediction_history
         )
     except Exception as e:
-        return render_template("index.html", error=f"Prediction Error: {str(e)}")
+        return render_template("index.html", error=f"Prediction Error: {str(e)}", history=prediction_history)
+
+@app.route("/api/predict", methods=["POST"])
+def api_predict():
+    # Feature 5: API Endpoint
+    if model_pipeline is None or label_encoder is None:
+        return jsonify({"error": "Model has not been trained yet."}), 503
+
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON data provided"}), 400
+            
+        required_fields = ["sepal_length", "sepal_width", "petal_length", "petal_width"]
+        if not all(k in data for k in required_fields):
+            return jsonify({"error": f"Missing fields. Required: {required_fields}"}), 400
+
+        features = [
+            float(data["sepal_length"]),
+            float(data["sepal_width"]),
+            float(data["petal_length"]),
+            float(data["petal_width"])
+        ]
+
+        pred_idx = model_pipeline.predict([features])[0]
+        probs = model_pipeline.predict_proba([features])[0]
+        pred_label = label_encoder.inverse_transform([pred_idx])[0]
+        
+        # Create probability dict
+        prob_dict = {}
+        for i, prob in enumerate(probs):
+            class_name = label_encoder.inverse_transform([i])[0]
+            prob_dict[class_name] = float(prob)
+
+        return jsonify({
+            "prediction": pred_label,
+            "confidence": float(np.max(probs)),
+            "probabilities": prob_dict
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/predict_csv", methods=["POST"])
 def predict_csv():
     if model_pipeline is None or label_encoder is None:
-        return render_template("index.html", error="Model has not been trained yet.")
+        return render_template("index.html", error="Model has not been trained yet.", history=prediction_history)
 
     file = request.files.get("file")
     if not file:
-        return render_template("index.html", error="No file uploaded.")
+        return render_template("index.html", error="No file uploaded.", history=prediction_history)
 
     try:
         df = pd.read_csv(file)
         
         if df.shape[1] < 4:
-            return render_template("index.html", error="CSV must have at least 4 feature columns.")
+            return render_template("index.html", error="CSV must have at least 4 feature columns.", history=prediction_history)
 
         X = df.iloc[:, :4].values
         
@@ -434,13 +526,14 @@ def predict_csv():
             "index.html",
             csv_result=True,
             metrics=metrics,
-            table_html=table_html
+            table_html=table_html,
+            history=prediction_history
         )
 
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return render_template("index.html", error=f"Analysis failed: {str(e)}")
+        return render_template("index.html", error=f"Analysis failed: {str(e)}", history=prediction_history)
 
 if __name__ == "__main__":
     app.run(debug=True)
