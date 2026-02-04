@@ -20,7 +20,7 @@
             <p>Enterprise AI Management: Train, Predict, Monitor, Explain</p>
         </div>
         <nav>
-            <!-- <a href="/" class="nav-link"><i class="fas fa-home"></i> App</a> -->
+            <a href="/dashboard" class="nav-link"><i class="fas fa-chart-line"></i> Dashboard</a>
             <a href="/about" class="nav-link"><i class="fas fa-book"></i> Docs</a>
         </nav>
     </header>
@@ -28,7 +28,7 @@
     <!-- TABS -->
     <div class="tabs">
         <button class="tab-btn active" data-target="dashboard">
-            <i class="fas fa-tachometer-alt"></i> Dashboard
+            <i class="fas fa-tachometer-alt"></i> Home
         </button>
         <button class="tab-btn" data-target="models">
             <i class="fas fa-code-branch"></i> Versioning
@@ -47,23 +47,58 @@
             
             <!-- TRAINING CARD -->
             <div class="card training-card">
-                <h3><i class="fas fa-brain"></i> Model Training</h3>
-                <p>Train the Production Model (SGD) on the full dataset.</p>
+                <h3><i class="fas fa-brain"></i> Model Training (Production)</h3>
+                <p>Train the Stochastic Gradient Descent (SGD) model on the full dataset for production deployment.</p>
                 
+                <details style="margin-bottom: 1rem; color: var(--gray); font-size: 0.9rem;">
+                    <summary style="cursor: pointer; font-weight: 500;">Feature Details</summary>
+                    <p style="margin-top: 0.5rem; text-align: justify;">
+                        The <strong>Model Training</strong> module creates the production-ready classification model. 
+                        It utilizes Stochastic Gradient Descent (SGD) for efficient learning. The process includes data normalization (StandardScaler) and label encoding.
+                        Upon completion, the model is versioned, metrics are logged to the Training History, and the system automatically swaps to the new model for live inference.
+                    </p>
+                </details>
+
+                <div style="margin-bottom: 1rem;">
+                    <label for="testSize" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--gray-dark);">
+                        Data Split: 
+                        <span style="color: var(--primary);">Train <span id="trainPct">80</span>%</span> / 
+                        <span style="color: #ec4899;">Test <span id="testPct">20</span>%</span>
+                    </label>
+                    <input type="range" id="testSize" min="0.1" max="0.5" step="0.05" value="0.2" style="width: 100%;" 
+                           oninput="
+                             const val = parseFloat(this.value); 
+                             document.getElementById('testPct').innerText = Math.round(val * 100);
+                             document.getElementById('trainPct').innerText = Math.round((1 - val) * 100);
+                           ">
+                </div>
+
                 <button id="trainBtn" onclick="startTrain()">
-                    <i class="fas fa-play"></i> Start Full Training
+                    <i class="fas fa-play"></i> Start Training
                 </button>
 
                 <div id="trainingStatus" class="status-box hidden">
                     <div class="spinner"></div>
-                    <span id="statusText">Initializing...</span>
+                    <span id="statusText">Đang khởi tạo...</span>
                 </div>
             </div>
 
             <!-- PREDICTION CARD -->
-            <div class="card prediction-card">
-                <h3><i class="fas fa-bullseye"></i> Live Prediction</h3>
-                <form action="/predict" method="POST">
+            <div class="card">
+                <h3><i class="fas fa-cube"></i> Live Prediction</h3>
+                <p>Run inference on a single data point.</p>
+                
+                <details style="margin-bottom: 1rem; color: var(--gray); font-size: 0.9rem;">
+                    <summary style="cursor: pointer; font-weight: 500;">Feature Details</summary>
+                    <p style="margin-top: 0.5rem; text-align: justify;">
+                        <strong>Live Prediction</strong> provides an interface for real-time model inference.
+                        Enter the four feature dimensions (sepal/petal length/width) to receive an instant classification.
+                        The system returns the predicted class, a <strong>Confidence Score</strong>, and a full probability distribution.
+                        Low-confidence predictions (< 70%) trigger an automatic warning to flag potential uncertainty.
+                    </p>
+                </details>
+
+                <form action="/predict" method="post" id="predictForm">
                     <div class="input-group">
                         <label>Sepal Length</label>
                         <input type="number" step="0.1" name="sepal_length" required placeholder="5.1">
@@ -88,6 +123,13 @@
                 {% if result and not csv_result %}
                 <div class="result-box">
                     <h4>Prediction Result</h4>
+                    
+                    {% if result.warning %}
+                    <div class="warning-box" style="background: #fffbeb; color: #92400e; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; border: 1px solid #fcd34d;">
+                        <i class="fas fa-exclamation-triangle"></i> {{ result.warning }}
+                    </div>
+                    {% endif %}
+
                     <p class="class-label">{{ result.label }}</p>
                     <p class="confidence">Confidence: {{ (result.confidence * 100) | round(2) }}%</p>
                     
@@ -117,7 +159,15 @@
             <!-- UPLOAD CARD -->
             <div class="card upload-card">
                 <h3><i class="fas fa-file-csv"></i> Batch Analysis</h3>
-                <p>Upload CSV for Batch Prediction & Analytics.</p>
+                <p>Upload a CSV file to classification multiple samples at once.</p>
+                <details style="margin-bottom: 1rem; color: var(--gray); font-size: 0.9rem;">
+                    <summary style="cursor: pointer; font-weight: 500;">Feature Details</summary>
+                    <p style="margin-top: 0.5rem; text-align: justify;">
+                        <strong>Batch Analysis</strong> facilitates high-volume inference by processing CSV datasets.
+                        It is essential for validating model performance against test sets or processing backlog data.
+                        The system automatically generates comprehensive reports including <strong>Confusion Matrices</strong>, Accuracy metrics, and 2D/3D visualization of the decision boundaries and data distribution.
+                    </p>
+                </details>
                 <form action="/predict_csv" method="POST" enctype="multipart/form-data" id="uploadForm">
                     <div class="file-drop-area" id="dropZone">
                         <i class="fas fa-cloud-upload-alt upload-icon"></i>
@@ -140,11 +190,16 @@
                         </thead>
                         <tbody>
                             {% for item in history %}
-                            <tr>
+                            <tr {% if item.warning %}style="background: #fffbeb;"{% endif %}>
                                 <td>{{ item.time }}</td>
                                 <td>{{ item.input.sepal_length }}, {{ item.input.sepal_width }}...</td>
                                 <td><span class="badge">{{ item.prediction }}</span></td>
-                                <td>{{ (item.confidence * 100) | round(1) }}%</td>
+                                <td>
+                                    {{ (item.confidence * 100) | round(1) }}%
+                                    {% if item.warning %}
+                                    <i class="fas fa-exclamation-triangle" style="color: #f59e0b; margin-left: 0.5rem;" title="Low Confidence"></i>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% else %}
                             <tr><td colspan="4" style="text-align: center;">No history.</td></tr>
@@ -303,12 +358,22 @@
         const btn = document.getElementById("trainBtn");
         const statusBox = document.getElementById("trainingStatus");
         const statusText = document.getElementById("statusText");
+        const testSize = document.getElementById("testSize").value;
     
+        // Store original text in dataset if not already
+        if(!btn.dataset.originalText) btn.dataset.originalText = btn.innerHTML;
+
         btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Training...';
+        
         statusBox.classList.remove("hidden");
         statusText.textContent = "Initializing training...";
     
-        fetch("/train", { method: "POST" })
+        fetch("/train", { 
+            method: "POST",
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({test_size: testSize})
+        })
             .then(r => r.json())
             .then(data => {
                 if(data.status === "started" || data.status === "already running") {
@@ -316,12 +381,14 @@
                 } else {
                     alert("Error starting training: " + JSON.stringify(data));
                     btn.disabled = false;
+                    btn.innerHTML = btn.dataset.originalText;
                     statusBox.classList.add("hidden");
                 }
             })
             .catch(err => {
                 console.error(err);
                 btn.disabled = false;
+                btn.innerHTML = btn.dataset.originalText;
             });
     }
     
@@ -339,6 +406,7 @@
                     } else {
                         statusText.innerText = "Training Completed Successfully!";
                         btn.disabled = false;
+                        if(btn.dataset.originalText) btn.innerHTML = btn.dataset.originalText;
                         clearInterval(interval);
                         setTimeout(() => {
                             statusBox.classList.add("hidden");
@@ -350,6 +418,47 @@
                 .catch(err => console.error("Status check failed", err));
         }, 1000);
     }
+
+    // === GLOBAL SPINNER LOGIC FOR FORMS ===
+    document.addEventListener("DOMContentLoaded", function() {
+        const forms = document.querySelectorAll("form");
+        
+        forms.forEach(form => {
+            form.addEventListener("submit", function(e) {
+                // If form is valid
+                if(form.checkValidity()) {
+                    const btn = form.querySelector("button[type='submit']");
+                    if(btn) {
+                        const originalText = btn.innerText;
+                        btn.disabled = true;
+                        btn.innerHTML = `<div class="spinner" style="width:1rem; height:1rem; border-width:2px; display:inline-block; vertical-align:middle; margin-right:0.5rem;"></div> ${originalText}`;
+                        
+                        // If it's the upload form (not AJAX but page load), the disabled button might not send value? 
+                        // Actually standard submit happens BEFORE disable if we don't preventDefault.
+                        // But if we let it run, chrome submits it.
+                        // However, strictly speaking, disabling a button *can* prevent submit in some triggers.
+                        // But since this is 'submit' event, the event is already fired.
+                        
+                        // NOTE: If using fetch/AJAX manually (like in labs), we handle spinner there.
+                        // These forms in index.html use standard POST action, so page reload will happen.
+                    }
+                }
+            });
+        });
+
+        // === SHOW TOAST ON PAGE LOAD IF RESULT EXISTS ===
+        // We can check if specific result elements exist
+        if(document.querySelector('.result-box')) {
+            showToast("Prediction Completed Successfully!", "success");
+        }
+        if(document.querySelector('.analysis-section')) { // Class I added for CSV result
+            showToast("Batch Analysis Completed!", "success");
+        }
+        if(document.querySelector('.error-box')) {
+             const errText = document.querySelector('.error-box').innerText.trim();
+             if(errText) showToast(errText, "error");
+        }
+    });
 </script>
 
 </body>

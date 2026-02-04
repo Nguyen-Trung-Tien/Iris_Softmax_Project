@@ -118,8 +118,11 @@ function loadModels() {
                     <td>${m.filename}</td>
                     <td>${m.size}</td>
                     <td>
-                        <button class="btn-sm btn-action" onclick="activateModel('${m.filename}')">
+                        <button class="btn-sm btn-action" onclick="activateModel('${m.filename}', this)" title="Activate this version">
                             <i class="fas fa-check-circle"></i> Activate
+                        </button>
+                        <button class="btn-sm btn-action" onclick="deleteModel('${m.filename}', this)" style="background: white; color: var(--danger); border: 1px solid var(--danger); margin-left: 0.5rem;" title="Delete this version">
+                            <i class="fas fa-trash"></i> Delete
                         </button>
                     </td>
                 </tr>`;
@@ -135,7 +138,91 @@ function loadModels() {
 function activateModel(filename) {
   if (!confirm(`Activate model ${filename}?`)) return;
 
-  const toast = document.getElementById("toast");
+  fetch("/api/models/activate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filename: filename }),
+  })
+    .then((r) => r.json())
+    .then((data) => {
+      if (data.status === "success") {
+        showToast(data.msg, "success");
+        // Update current model info (optional reload)
+        setTimeout(() => loadModels(), 500); // Reload list to show active status if we had it
+      } else {
+        showToast("Error: " + (data.error || "Unknown"), "error");
+      }
+    })
+    .catch((e) => showToast("Network error: " + e, "error"));
+}
+
+function deleteModel(filename, btn) {
+  if (!confirm(`Are you sure you want to PERMANENTLY DELETE ${filename}?`))
+    return;
+
+  // Show spinner
+  let originalText = "";
+  if (btn) {
+    originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  }
+
+  fetch("/api/models", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filename: filename }),
+  })
+    .then((r) => r.json())
+    .then((data) => {
+      if (data.status === "success") {
+        showToast(data.msg, "success");
+        setTimeout(() => loadModels(), 500);
+      } else {
+        showToast("Error: " + data.error, "error");
+        // Reset button only on error (success reloads list)
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+      }
+    })
+    .catch((e) => {
+      showToast("Network Model Error: " + e, "error");
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    });
+}
+
+// === TOAST NOTIFICATION ===
+function showToast(message, type = "success") {
+  // Create toast element if not exists
+  let toast = document.getElementById("toast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "toast";
+    toast.className = "toast";
+    document.body.appendChild(toast);
+  }
+
+  // Set Content
+  const icon =
+    type === "success"
+      ? '<i class="fas fa-check-circle"></i>'
+      : '<i class="fas fa-exclamation-circle"></i>';
+  toast.innerHTML = icon + message;
+  toast.className = `toast show ${type}`;
+
+  // Hide after 3s
+  setTimeout(() => {
+    toast.className = toast.className.replace("show", "");
+  }, 3000);
+}
+
+function activateModel(filename) {
+  if (!confirm(`Activate model ${filename}?`)) return;
 
   fetch("/api/models/activate", {
     method: "POST",
@@ -145,13 +232,14 @@ function activateModel(filename) {
     .then((r) => r.json())
     .then((data) => {
       if (data.status === "success") {
-        alert(data.msg);
-        // Optional: Reload page or update current model info
+        showToast(data.msg, "success");
+        // Update current model info (optional reload)
+        setTimeout(() => loadModels(), 500); // Reload list to show active status if we had it
       } else {
-        alert("Error: " + (data.error || "Unknown"));
+        showToast("Error: " + (data.error || "Unknown"), "error");
       }
     })
-    .catch((e) => alert("Network error: " + e));
+    .catch((e) => showToast("Network error: " + e, "error"));
 }
 
 // === INSIGHTS ===

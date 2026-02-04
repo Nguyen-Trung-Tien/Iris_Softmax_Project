@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Monitoring Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid var(--primary);
+        }
+        .stat-card h3 {
+            font-size: 0.9rem;
+            color: var(--gray);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--dark);
+        }
+        .stat-card .desc {
+            font-size: 0.85rem;
+            color: var(--gray);
+            margin-top: 0.5rem;
+        }
+        .chart-container {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .status-healthy { background: #def7ec; color: #03543f; }
+        .status-degraded { background: #fde8e8; color: #9b1c1c; }
+        .status-warning { background: #fef3c7; color: #92400e; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <div>
+            <h1><i class="fas fa-chart-line"></i> Monitoring Dashboard</h1>
+            <p>Real-time Model Health & Performance Metrics</p>
+            <details style="margin-bottom: 2rem; color: var(--gray); font-size: 0.9rem; max-width: 800px;">
+                <summary style="cursor: pointer; font-weight: 500;">Feature Details</summary>
+                <p style="margin-top: 0.5rem; text-align: justify;">
+                    The <strong>Monitoring Dashboard</strong> provides a centralized view of the system's operational health.
+                    It displays key metrics such as <strong>System Status</strong>, total number of predictions served, and the average model confidence.
+                    It also tracks <strong>Low Confidence Warnings</strong> to alert administrators of potential data drifts or model degradation.
+                    The <strong>Training History</strong> table below logs every training run, allowing you to audit model improvements over time.
+                </p>
+            </details>
+        </div>
+        <nav>
+            <a href="/" class="nav-link"><i class="fas fa-arrow-left"></i> Back to App</a>
+        </nav>
+    </header>
+
+    <!-- HEALTH CHECK -->
+    <div class="dashboard-grid">
+        <div class="stat-card" style="border-color: #10b981;">
+            <h3>System Status</h3>
+            <div class="value" id="healthStatus">Loading...</div>
+            <div class="desc">Model Version: <span id="modelVersion">--</span></div>
+        </div>
+        <div class="stat-card" style="border-color: #3b82f6;">
+            <h3>Total Predictions</h3>
+            <div class="value" id="totalPreds">0</div>
+            <div class="desc">Lifetime requests</div>
+        </div>
+        <div class="stat-card" style="border-color: #8b5cf6;">
+            <h3>Avg Confidence</h3>
+            <div class="value" id="avgConf">0%</div>
+            <div class="desc">Model certainty</div>
+        </div>
+        <div class="stat-card" style="border-color: #f59e0b;">
+            <h3>Warnings</h3>
+            <div class="value" id="warnCount">0</div>
+            <div class="desc">Low confidence events</div>
+        </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="grid-layout">
+        <div class="card full-width">
+            <h3><i class="fas fa-history"></i> Training History</h3>
+            <div class="table-container">
+                <table class="table" id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Epochs</th>
+                            <th>Train Loss</th>
+                            <th>Val Loss</th>
+                            <th>Val Accuracy</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="5" style="text-align:center">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    async function fetchHealth() {
+        try {
+            const res = await fetch('/health');
+            const data = await res.json();
+            const el = document.getElementById('healthStatus');
+            el.innerText = data.status.toUpperCase();
+            el.className = 'value ' + (data.status === 'healthy' ? 'text-green' : 'text-red'); // simplistic class
+            document.getElementById('modelVersion').innerText = data.version;
+        } catch(e) { console.error(e); }
+    }
+
+    async function fetchMonitor() {
+        try {
+            const res = await fetch('/api/monitoring');
+            const data = await res.json();
+            document.getElementById('totalPreds').innerText = data.total_predictions;
+            document.getElementById('avgConf').innerText = (data.avg_confidence * 100).toFixed(1) + '%';
+            document.getElementById('warnCount').innerText = data.low_confidence_count;
+        } catch(e) { console.error(e); }
+    }
+
+    async function fetchHistory() {
+        try {
+            const res = await fetch('/api/training_history');
+            const data = await res.json();
+            const tbody = document.querySelector('#historyTable tbody');
+            tbody.innerHTML = '';
+            
+            if(data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">No training history found.</td></tr>';
+                return;
+            }
+
+            // Sort new to old
+            data.reverse().forEach(row => {
+               const tr = document.createElement('tr');
+               tr.innerHTML = `
+                   <td>${row.timestamp}</td>
+                   <td>${row.epochs}</td>
+                   <td>${row.train_loss ? row.train_loss.toFixed(4) : 'N/A'}</td>
+                   <td>${row.val_loss ? row.val_loss.toFixed(4) : 'N/A'}</td>
+                   <td><strong>${(row.final_val_acc * 100).toFixed(2)}%</strong></td>
+               `;
+               tbody.appendChild(tr);
+            });
+
+        } catch(e) { console.error(e); }
+    }
+
+    // Init
+    fetchHealth();
+    fetchMonitor();
+    fetchHistory();
+    
+    // Auto Refresh
+    setInterval(fetchHealth, 30000);
+    setInterval(fetchMonitor, 10000);
+</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+Timestamp,Input,Prediction,Confidence,Model_Version
+2026-02-04 21:52:32,"{""sepal_length"": 5.1, ""sepal_width"": 3.5, ""petal_length"": 1.4, ""petal_width"": 0.2}",Iris-setosa,0.9278,unknown
+2026-02-04 21:59:36,"{""sepal_length"": 5.1, ""sepal_width"": 3.5, ""petal_length"": 1.4, ""petal_width"": 0.2}",Iris-setosa,0.9278,unknown
+2026-02-04 22:00:45,"{""sepal_length"": 5.5, ""sepal_width"": 4.2, ""petal_length"": 1.4, ""petal_width"": 0.2}",Iris-setosa,0.9898,unknown
+2026-02-04 22:13:45,"{""sepal_length"": 5.1, ""sepal_width"": 3.5, ""petal_length"": 1.4, ""petal_width"": 0.2}",Iris-setosa,0.9278,v_20260204_221308
+2026-02-04 22:17:34,"{""sepal_length"": 5.1, ""sepal_width"": 3.5, ""petal_length"": 1.4, ""petal_width"": 0.1}",Iris-setosa,0.9049,v_20260204_221647
+2026-02-04 22:44:52,"{""sepal_length"": 4.0, ""sepal_width"": 2.0, ""petal_length"": 3.0, ""petal_width"": 2.0}",Iris-virginica,0.7319,v_20260204_224415
