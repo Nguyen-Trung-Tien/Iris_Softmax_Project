@@ -617,6 +617,7 @@ def predict_csv():
         
         # Plot Contours
         plt.contourf(xx, yy, Z, alpha=0.3, cmap="viridis")
+        plt.contour(xx, yy, Z, colors='k', linewidths=1, alpha=0.5)
         
         # Scatter Plot
         for i, label in enumerate(unique_labels):
@@ -649,6 +650,8 @@ def predict_csv():
             plt.title("Accuracy per Class")
             
             # Update DataFrame to show Mapped Labels key instead of numbers
+            # Force column to object type to allow string assignment
+            df[df.columns[4]] = df.iloc[:, 4].astype(object)
             df.iloc[:, 4] = y_true_str
 
             # Add Percentage Labels
